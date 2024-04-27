@@ -226,14 +226,28 @@ def initialize_stops():
     for stop in stops.values():
         neighbors = []
         sorted_stops = sorted(stops.values(), key=lambda s: math.sqrt((stop.x - s.x)**2 + (stop.y - s.y)**2))
-        for other_stop in sorted_stops[:45]:  # Consider only the nearest 45 stops
+        for other_stop in sorted_stops[:40]:  # Consider only the nearest 40 stops
             if other_stop != stop:
                 neighbors.append(other_stop.id)
         stop.neighbors = neighbors
 
     return stops
 
+def generate_routes(stops):
+    routes = []
+    for i in range(49):
+        while True:
+            start = random.randint(1, 2218)
+            end = random.randint(1, 2218)
+            if start != end:
+                route = a_star(start, end)
+                if route and len(route) >= 15 and len(route) <= 40:
+                    routes.append(route)
+                    break
+    return routes
+
 if __name__ == "__main__":
     stops = initialize_stops()
+    routes = generate_routes(stops)
     app = BusRouteGUI(stops)
     app.mainloop()
