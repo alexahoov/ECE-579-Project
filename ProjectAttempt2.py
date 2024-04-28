@@ -18,11 +18,19 @@ class BusStop:
 def heuristic(a, b):
     return math.sqrt((stops[a].x - stops[b].x)**2 + (stops[a].y - stops[b].y)**2)
 
-def a_star(start, dest):
+def heuristic_least_bus_changes(a, b):
+    if a == b:
+        return 0
+    else:
+        return len([bus_stop for bus_stop in stops.values() if b in bus_stop.neighbors])
+
+def a_star(start, dest, mode):
     open_set = [(0, start)]
     came_from = {}
     g_score = {}
     g_score[start] = 0
+
+    heuristic_func = heuristic_least_bus_changes if mode == "Least Bus Changes" else heuristic
 
     while open_set:
         current = open_set.pop(0)[1]
@@ -34,7 +42,7 @@ def a_star(start, dest):
             if neighbor not in g_score or tentative_g_score < g_score[neighbor]:
                 came_from[neighbor] = current
                 g_score[neighbor] = tentative_g_score
-                f_score = tentative_g_score + heuristic(neighbor, dest)
+                f_score = tentative_g_score + heuristic_func(neighbor, dest)
                 open_set.append((f_score, neighbor))
                 open_set.sort(key=lambda x: x[0])
 
@@ -48,8 +56,7 @@ def reconstruct_path(came_from, dest):
     path.reverse()
     return path
 
-# Travel Time Calculation
-def calculate_travel_time(route, wait_time):
+def calculate_travel_time(route, wait_time, mode):
     travel_time = 0
     bus_changes = 0
     prev_stop = None
@@ -64,8 +71,11 @@ def calculate_travel_time(route, wait_time):
         travel_time += 1  # Bus stop wait time (in minutes)
         prev_stop = stop
 
-    travel_time += len(route) * 35 / 3600  # Travel time based on speed (in minutes)
-    travel_time += bus_changes * 5  # Bus change time (in minutes)
+    if mode == "Fastest Route":
+        travel_time += len(route) * 35 / 3600  # Travel time based on speed (in minutes)
+    elif mode == "Least Bus Changes":
+        travel_time += bus_changes * 5  # Bus change time (in minutes)
+
     travel_time += wait_time  # Wait time for the first bus
 
     return travel_time, bus_change_stops
@@ -90,16 +100,25 @@ class BusRouteGUI(tk.Tk):
         self.dest_entry = tk.Entry(self.frame)
         self.dest_entry.grid(row=1, column=1)
 
-        self.bus_label = tk.Label(self.frame, text="Search Bus Route (1-49):")
-        self.bus_label.grid(row=2, column=0)
-        self.bus_entry = tk.Entry(self.frame)
-        self.bus_entry.grid(row=2, column=1)
+        self.mode_label = tk.Label(self.frame, text="Select Route Type:")
+        self.mode_label.grid(row=2, column=0)
+        self.mode_var = tk.StringVar(self.frame, "Fastest Route")
+        self.mode_menu = tk.OptionMenu(self.frame, self.mode_var, "Fastest Route", "Least Bus Changes")
+        self.mode_menu.grid(row=2, column=1)
 
         self.go_button = tk.Button(self.frame, text="GO", command=self.find_route)
         self.go_button.grid(row=3, column=0, columnspan=2, pady=10)
 
+        self.bus_label = tk.Label(self.frame, text="Search Bus Route (1-49):")
+        self.bus_label.grid(row=4, column=0)
+        self.bus_entry = tk.Entry(self.frame)
+        self.bus_entry.grid(row=4, column=1)
+
+        self.bus_button = tk.Button(self.frame, text="Find Bus Route", command=self.find_bus_route)
+        self.bus_button.grid(row=5, column=0, columnspan=2, pady=10)
+
         self.clear_button = tk.Button(self.frame, text="Clear", command=self.clear_routes)
-        self.clear_button.grid(row=4, column=0, columnspan=2, pady=10)
+        self.clear_button.grid(row=6, column=0, columnspan=2, pady=10)
 
         self.canvas = tk.Canvas(self, width=600, height=600)
         self.canvas.pack(side=tk.LEFT)
@@ -121,6 +140,7 @@ class BusRouteGUI(tk.Tk):
     def find_route(self):
         start = int(self.start_entry.get())
         dest = int(self.dest_entry.get())
+        mode = self.mode_var.get()
 
         if start not in self.stops or dest not in self.stops:
             self.result_text.config(state=tk.NORMAL)
@@ -129,11 +149,11 @@ class BusRouteGUI(tk.Tk):
             self.result_text.config(state=tk.DISABLED)
             return
 
-        route = a_star(start, dest)
+        route = a_star(start, dest, mode)
 
         if route:
             wait_time = calculate_first_bus_wait_time(route, start)
-            travel_time, self.bus_change_stops = calculate_travel_time(route, wait_time)
+            travel_time, self.bus_change_stops = calculate_travel_time(route, wait_time, mode)
             self.draw_route(route, start, dest)
             route_info = f"Optimal route: {' -> '.join(map(str, route))}\nTotal travel time: {travel_time:.2f} minutes\nWait time for first bus: {wait_time:.2f} minutes\nStops visited: {len(route)}\nTraffic lights passed: {len(route) - 1}\nBus changes: {len(set(route)) - 1}\n"
             self.result_text.config(state=tk.NORMAL)
@@ -146,6 +166,7 @@ class BusRouteGUI(tk.Tk):
             self.result_text.insert(tk.END, "No route found")
             self.result_text.config(state=tk.DISABLED)
 
+    def find_bus_route(self):
         bus_number = self.bus_entry.get()
         if bus_number.isdigit():
             bus_number = int(bus_number)
@@ -235,19 +256,6 @@ def initialize_stops():
 
     return stops
 
-def generate_routes(stops):
-    routes = []
-    for i in range(49):
-        while True:
-            start = random.randint(1, 2218)
-            end = random.randint(1, 2218)
-            if start != end:
-                route = a_star(start, end)
-                if route and len(route) >= 15 and len(route) <= 40:
-                    routes.append(route)
-                    break
-    return routes
-
 def calculate_first_bus_wait_time(route, start):
     # Calculate travel time for the first bus to reach the user's starting stop
     wait_time = 0
@@ -263,6 +271,5 @@ def calculate_first_bus_wait_time(route, start):
 
 if __name__ == "__main__":
     stops = initialize_stops()
-    routes = generate_routes(stops)
     app = BusRouteGUI(stops)
     app.mainloop()
