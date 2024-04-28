@@ -49,7 +49,7 @@ def reconstruct_path(came_from, dest):
     return path
 
 # Travel Time Calculation
-def calculate_travel_time(route):
+def calculate_travel_time(route, wait_time):
     travel_time = 0
     bus_changes = 0
     prev_stop = None
@@ -66,6 +66,7 @@ def calculate_travel_time(route):
 
     travel_time += len(route) * 35 / 3600  # Travel time based on speed (in minutes)
     travel_time += bus_changes * 5  # Bus change time (in minutes)
+    travel_time += wait_time  # Wait time for the first bus
 
     return travel_time, bus_change_stops
 
@@ -129,10 +130,12 @@ class BusRouteGUI(tk.Tk):
             return
 
         route = a_star(start, dest)
+
         if route:
-            travel_time, self.bus_change_stops = calculate_travel_time(route)
+            wait_time = calculate_first_bus_wait_time(route, start)
+            travel_time, self.bus_change_stops = calculate_travel_time(route, wait_time)
             self.draw_route(route, start, dest)
-            route_info = f"Optimal route: {' -> '.join(map(str, route))}\nTotal travel time: {travel_time:.2f} minutes\nStops visited: {len(route)}\nTraffic lights passed: {len(route) - 1}\nBus changes: {len(set(route)) - 1}\nBus change stops: {', '.join(map(str, self.bus_change_stops))}"
+            route_info = f"Optimal route: {' -> '.join(map(str, route))}\nTotal travel time: {travel_time:.2f} minutes\nWait time for first bus: {wait_time:.2f} minutes\nStops visited: {len(route)}\nTraffic lights passed: {len(route) - 1}\nBus changes: {len(set(route)) - 1}\n"
             self.result_text.config(state=tk.NORMAL)
             self.result_text.delete(1.0, tk.END)
             self.result_text.insert(tk.END, route_info)
@@ -213,7 +216,6 @@ class BusRouteGUI(tk.Tk):
         self.canvas.delete("bus_marker")  # Clear bus markers
         self.canvas.delete("bus_change")  # Clear bus change markers
 
-# Main Function
 def initialize_stops():
     # Initialize bus stops with random coordinates
     stops = {}
@@ -245,6 +247,19 @@ def generate_routes(stops):
                     routes.append(route)
                     break
     return routes
+
+def calculate_first_bus_wait_time(route, start):
+    # Calculate travel time for the first bus to reach the user's starting stop
+    wait_time = 0
+    current_stop_index = 0
+    for i, stop in enumerate(route):
+        if stop == start:
+            current_stop_index = i
+            break
+    for i in range(current_stop_index, len(route)):
+        wait_time += 1  # Bus stop wait time (in minutes)
+    wait_time += len(route[current_stop_index:]) * 35 / 3600  # Travel time based on speed (in minutes)
+    return wait_time
 
 if __name__ == "__main__":
     stops = initialize_stops()
