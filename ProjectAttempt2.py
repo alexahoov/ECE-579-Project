@@ -73,7 +73,7 @@ def calculate_travel_time(route, wait_time, mode):
 
     travel_time += len(route) * 35 / 3600  # Travel time based on speed (in minutes)
     
-    travel_time += bus_changes * 5  # Bus change time (in minutes)
+    travel_time += bus_changes * 1  # Bus change time (in minutes)
 
     travel_time += wait_time  # Wait time for the first bus
 
