@@ -71,10 +71,9 @@ def calculate_travel_time(route, wait_time, mode):
         travel_time += 1  # Bus stop wait time (in minutes)
         prev_stop = stop
 
-    if mode == "Fastest Route":
-        travel_time += len(route) * 35 / 3600  # Travel time based on speed (in minutes)
-    elif mode == "Least Bus Changes":
-        travel_time += bus_changes * 5  # Bus change time (in minutes)
+    travel_time += len(route) * 35 / 3600  # Travel time based on speed (in minutes)
+    
+    travel_time += bus_changes * 5  # Bus change time (in minutes)
 
     travel_time += wait_time  # Wait time for the first bus
 
@@ -249,7 +248,7 @@ def initialize_stops():
     for stop in stops.values():
         neighbors = []
         sorted_stops = sorted(stops.values(), key=lambda s: math.sqrt((stop.x - s.x)**2 + (stop.y - s.y)**2))
-        for other_stop in sorted_stops[:40]:  # Consider only the nearest 40 stops
+        for other_stop in sorted_stops[:50]:  # Consider only the nearest 50 stops
             if other_stop != stop:
                 neighbors.append(other_stop.id)
         stop.neighbors = neighbors
